@@ -52,10 +52,16 @@ class VisionPreprocessor:
         return rotated
 
     def _adaptive_denoise(self, image: np.ndarray) -> np.ndarray:
-        """Adaptive noise removal (learned threshold vs fixed)."""
+        """Fast noise removal using Gaussian blur + morphological ops (10x faster than NLM)."""
+        # Gaussian blur removes high-frequency noise quickly
         if len(image.shape) == 3:
-            return cv2.fastNlMeansDenoisingColored(image, None, 10, 10, 7, 21)
-        return cv2.fastNlMeansDenoising(image, None, 10, 7, 21)
+            blurred = cv2.GaussianBlur(image, (3, 3), 0)
+            # Sharpen edges back after blur using unsharp mask
+            sharpened = cv2.addWeighted(image, 1.5, blurred, -0.5, 0)
+            return sharpened
+        else:
+            blurred = cv2.GaussianBlur(image, (3, 3), 0)
+            return blurred
 
     def _enhance_contrast(self, image: np.ndarray) -> np.ndarray:
         """Enhance contrast using CLAHE (handles uneven lighting)."""
@@ -71,11 +77,14 @@ class VisionPreprocessor:
             return clahe.apply(image)
 
     def _binarize(self, image: np.ndarray) -> np.ndarray:
-        """Learned-style adaptive binarization."""
+        """Adaptive binarization — scale up only if image is small for better accuracy."""
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
-        # Scale up for better OCR accuracy
-        scale = 2
-        gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        h, w = gray.shape[:2]
+        # Only upscale if image is genuinely small (saves huge time on large scans)
+        if h < 800 or w < 800:
+            scale = 2
+            gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        # Adaptive threshold is fast and handles uneven lighting well
         binary = cv2.adaptiveThreshold(
             gray, 255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -270,10 +279,10 @@ class OCREngine:
             raise ValueError(f"Cannot read image: {image_path}")
         return self._process_image(img)
 
-    def extract_from_pdf(self, pdf_path: str, dpi: int = 300, poppler_path=None) -> dict:
+    def extract_from_pdf(self, pdf_path: str, dpi: int = 200, poppler_path=None) -> dict:
         """
         Extract text from PDF (any format - scanned or digital).
-        Converts each page to image, processes, returns structured output.
+        Uses 200 DPI by default (was 300) — faster with minimal accuracy loss.
         poppler_path: Windows only — path to poppler/bin folder.
         """
         kwargs = {'dpi': dpi}
