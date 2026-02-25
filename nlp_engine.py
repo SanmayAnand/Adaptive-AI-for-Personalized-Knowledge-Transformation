@@ -34,7 +34,7 @@ class NLPEngine:
         'there', 'when', 'where', 'why', 'how', 'all', 'each', 'every',
         'both', 'few', 'more', 'most', 'other', 'some', 'such', 'no',
         'only', 'same', 'so', 'than', 'too', 'very', 'just', 'because',
-        'if', 'while', 'about', 'its', 'their', 'our', 'your', 'his', 'her'
+        'if', 'while', 'about', 'its'   , 'their', 'our', 'your', 'his', 'her'
     ])
 
     # NER patterns (Named Entity Recognition without ML)
