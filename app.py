@@ -11,6 +11,10 @@ from ocr_engine import OCREngine
 from nlp_engine import TextTransformer, NLPEngine, StoryTransformer
 from learning_engine import ConceptExtractor, TextExpander, QuizGenerator, UserLevelAssessor
 from train import TrainingDataCollector, OCRPostProcessor, ModelEvaluator
+# At the top with other imports
+from menu_ocr_endpoint import register_menu_ocr_routes
+
+# After all your existing routes, before if __name__ == '__main__':
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -1716,6 +1720,7 @@ def api_shrink_pdf():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+register_menu_ocr_routes(app, ocr_engine)
 
 if __name__ == '__main__':
     print("=" * 65)
@@ -1727,4 +1732,4 @@ if __name__ == '__main__':
         print("   ⚠️  Poppler not found — PDF needs setup (see README)")
     print("   Open: http://localhost:5000")
     print("=" * 65)
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
