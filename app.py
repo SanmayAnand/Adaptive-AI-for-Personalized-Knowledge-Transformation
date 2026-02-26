@@ -24,7 +24,7 @@ os.makedirs('uploads', exist_ok=True)
 os.makedirs('outputs', exist_ok=True)
 os.makedirs('models', exist_ok=True)
 
-POPPLER_PATH = r"C:\Users\Hriday\Downloads\Release-25.12.0-0\poppler-25.12.0\Library\bin"
+POPPLER_PATH = r"C:\Program Files\Poppler-ai\poppler-25.12.0\Library\bin"
 if platform.system() == 'Windows':
     for c in [r'C:\Program Files\Poppler-ai\poppler-25.12.0\Library\bin', r'C:\poppler\bin',
               r'C:\Program Files\poppler\bin', r'C:\Program Files\poppler\Library\bin']:
