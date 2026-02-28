@@ -1,7 +1,0 @@
-pytesseract
-pillow
-pdf2image
-opencv-python-headless
-numpy
-flask
-werkzeug
