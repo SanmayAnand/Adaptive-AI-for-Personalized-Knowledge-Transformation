@@ -1,0 +1,263 @@
+/* =============================================================================
+   src/App.css
+   WHO WRITES THIS: Person D
+   WHAT THIS IS: All styles for the AKTE website
+   =============================================================================
+
+   Copy the full CSS block below. All class names used in the components
+   are listed here with their purpose.
+   ============================================================================= */
+
+/* ── Page layout ─────────────────────────────────────────── */
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f4f6fa;
+  margin: 0;
+}
+
+.nav {
+  background: #1a3e72;
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* ── Progress bar (4 steps at the top) ───────────────────── */
+
+.progress {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px;
+  background: white;
+  border-bottom: 1px solid #e0e4ea;
+}
+
+.step {
+  font-size: 13px;
+  color: #999;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.step.active {
+  background: #1a3e72;
+  color: white;
+  font-weight: 600;
+}
+
+/* ── Screen container ────────────────────────────────────── */
+
+.screen {
+  max-width: 600px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+
+.screen h1 {
+  color: #1a3e72;
+  margin-bottom: 4px;
+}
+
+.sub {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ── Cards (white box for content) ───────────────────────── */
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.fname {
+  font-size: 13px;
+  color: #555;
+  margin-top: 6px;
+}
+
+/* ── Quiz question cards ──────────────────────────────────── */
+
+.question-card {
+  margin-bottom: 12px;
+}
+
+.qnum {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 4px;
+}
+
+.qtext {
+  font-weight: 600;
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #222;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.option.selected {
+  border-color: #1a3e72;
+  background: #eef3fb;
+}
+
+.option input {
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.opt-key {
+  font-weight: bold;
+  color: #1a3e72;
+  min-width: 18px;
+}
+
+/* ── Level result card ────────────────────────────────────── */
+
+.level-card {
+  text-align: center;
+}
+
+.level-badge {
+  font-size: 30px;
+  font-weight: bold;
+  color: #1a3e72;
+  margin-bottom: 8px;
+}
+
+.score {
+  font-size: 18px;
+  color: #444;
+}
+
+.level-desc {
+  color: #555;
+  font-style: italic;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+/* ── Download success card ────────────────────────────────── */
+
+.success-card {
+  text-align: center;
+  border-left: 4px solid #0a3d1f;
+}
+
+.big-tick {
+  font-size: 52px;
+  margin: 0 0 8px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+
+.btn {
+  display: inline-block;
+  background: #1a3e72;
+  color: white;
+  padding: 13px 30px;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: none;
+  margin-top: 10px;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.btn:hover {
+  background: #2a5aaa;
+}
+
+.btn:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.btn-sec {
+  background: #eef0f4;
+  color: #333;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-sec:hover {
+  background: #e0e4ea;
+}
+
+.override-row {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.override-row .btn-sec {
+  width: auto;
+  flex: 1;
+}
+
+.override-row .btn-sec.active {
+  background: #1a3e72;
+  color: white;
+}
+
+/* ── Feedback messages ────────────────────────────────────── */
+
+.status {
+  color: #555;
+  font-style: italic;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.error {
+  color: #c0392b;
+  font-size: 14px;
+  margin-top: 8px;
+}

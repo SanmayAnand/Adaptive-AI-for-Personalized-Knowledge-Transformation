@@ -1,0 +1,15 @@
+{
+  "_comment": "This is for REFERENCE only — attach these managed policies via the AWS Console, don't paste this as a custom policy.",
+  "policies_to_attach": [
+    "AmazonS3FullAccess",
+    "AmazonDynamoDBFullAccess",
+    "AmazonBedrockFullAccess",
+    "AmazonTextractFullAccess"
+  ],
+  "resources": {
+    "s3_bucket": "akte-bucket",
+    "dynamodb_table": "akte-users",
+    "region": "us-east-1",
+    "bedrock_model": "anthropic.claude-3-haiku-20240307-v1:0"
+  }
+}
