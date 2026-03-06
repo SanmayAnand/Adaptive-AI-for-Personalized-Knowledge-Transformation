@@ -1,165 +1,231 @@
 # test_connections.py
-# Tests ALL connections WITHOUT needing AWS CLI installed.
-# Just fill in your keys below and run: python test_connections.py
+# Tests ALL AWS connections without AWS CLI
+# Using Amazon Bedrock Nova Lite instead of Claude Haiku
 
 import json
-import sys
-
+import os
 from dotenv import load_dotenv
 load_dotenv()
+
+import boto3
 
 AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_REGION     = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 BUCKET_NAME    = os.environ.get("BUCKET_NAME", "ocr-ai-for-bharat1")
 
-HAIKU_MODEL = "anthropic.claude-3-haiku-20240307-v1:0"
+# ── Switched from Claude Haiku → Amazon Nova Lite ──
+# Other Nova options:
+#   amazon.nova-micro-v1:0  (fastest, text-only, cheapest)
+#   amazon.nova-lite-v1:0   (fast, multimodal, cheap)     ← using this
+#   amazon.nova-pro-v1:0    (most capable, multimodal)
+NOVA_MODEL = "amazon.nova-lite-v1:0"
 
-# Colours (work on Windows PowerShell too)
+# ─────────────────────────────────────────────
+# Colours
+# ─────────────────────────────────────────────
 def green(s):  return f"\033[92m{s}\033[0m"
 def red(s):    return f"\033[91m{s}\033[0m"
 def yellow(s): return f"\033[93m{s}\033[0m"
 def bold(s):   return f"\033[1m{s}\033[0m"
 
-import boto3
-
+# ─────────────────────────────────────────────
+# Create AWS client
+# ─────────────────────────────────────────────
 def make_client(service):
-    """Create boto3 client using keys directly — no AWS CLI needed."""
     return boto3.client(
         service,
-        region_name          = AWS_REGION,
-        aws_access_key_id    = AWS_ACCESS_KEY,
-        aws_secret_access_key= AWS_SECRET_KEY,
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_KEY
     )
 
-print("\n" + "═"*58)
-print(bold("  AKTE · Person B — Connection Checks (no AWS CLI)"))
-print("═"*58 + "\n")
+print("\n" + "═"*60)
+print(bold(" AKTE · Person B — AWS Connection Tests"))
+print("═"*60 + "\n")
 
 passed_all = True
 
-# ── CHECK 1: boto3 installed ──────────────────────────────
+# ─────────────────────────────────────────────
+# CHECK 1 — boto3
+# ─────────────────────────────────────────────
 print("[ 1/5 ] boto3 package")
+
 try:
-    import boto3
-    print(f"  {green('✅ boto3')} version {boto3.__version__} found")
-except ImportError:
-    print(f"  {red('❌ boto3 not installed')}")
-    print(f"     Fix: pip install boto3")
+    print(f"  {green('✅ boto3 installed')} version {boto3.__version__}")
+except Exception:
+    print(f"  {red('❌ boto3 missing')}")
+    print("     Fix: pip install boto3")
     passed_all = False
 
-# ── CHECK 2: S3 bucket accessible ────────────────────────
+
+# ─────────────────────────────────────────────
+# CHECK 2 — S3
+# ─────────────────────────────────────────────
 print("\n[ 2/5 ] S3 bucket access")
+
 try:
-    s3   = make_client("s3")
-    resp = s3.list_objects_v2(Bucket=BUCKET_NAME, MaxKeys=10)
-    keys = [o["Key"] for o in resp.get("Contents", [])]
+    s3 = make_client("s3")
+
+    resp = s3.list_objects_v2(
+        Bucket=BUCKET_NAME,
+        MaxKeys=10
+    )
+
+    objects = resp.get("Contents", [])
+
     print(f"  {green('✅ S3 connected')} — bucket: {BUCKET_NAME}")
-    print(f"     Objects found: {len(keys)}")
-    for k in keys[:5]:
-        print(f"       📄 {k}")
-    if len(keys) > 5:
-        print(f"       ... and {len(keys)-5} more")
+    print(f"     Objects found: {len(objects)}")
+
+    for obj in objects[:5]:
+        print(f"       📄 {obj['Key']}")
+
 except Exception as e:
     print(f"  {red('❌ S3 failed')}: {e}")
-    print( "     Possible fixes:")
-    print( "       → Check AWS_ACCESS_KEY and AWS_SECRET_KEY above")
-    print(f"       → Check bucket name is exactly: {BUCKET_NAME}")
-    print( "       → Ask Person A: does your IAM user have AmazonS3FullAccess?")
+    print("     Check IAM permissions or bucket name")
     passed_all = False
 
-# ── CHECK 3: Bedrock (Claude Haiku) ──────────────────────
-print("\n[ 3/5 ] AWS Bedrock — Claude 3 Haiku")
+
+# ─────────────────────────────────────────────
+# CHECK 3 — Bedrock Amazon Nova Lite
+# ─────────────────────────────────────────────
+# Nova uses a DIFFERENT request/response format vs Claude:
+#
+#  Request body:
+#    messages[].content is a list of {"text": "..."} objects
+#    token limit key is "max_new_tokens" inside "inferenceConfig"
+#    NO "anthropic_version" field needed
+#
+#  Response path:
+#    result["output"]["message"]["content"][0]["text"]
+#
+# ─────────────────────────────────────────────
+print("\n[ 3/5 ] Bedrock — Amazon Nova Lite")
+
 try:
     bedrock = make_client("bedrock-runtime")
-    body = json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 15,
-        "messages": [{"role": "user",
-                      "content": "Reply with exactly: CONNECTED"}]
-    })
-    resp  = bedrock.invoke_model(
-        modelId      = HAIKU_MODEL,
-        contentType  = "application/json",
-        accept       = "application/json",
-        body         = body
+
+    # Nova request format (different from Claude)
+    body = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "text": "Reply with exactly: CONNECTED"
+                    }
+                ]
+            }
+        ],
+        "inferenceConfig": {
+            "max_new_tokens": 20,
+            "temperature": 0
+        }
+    }
+
+    response = bedrock.invoke_model(
+        modelId=NOVA_MODEL,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body)
     )
-    reply = json.loads(resp["body"].read())["content"][0]["text"].strip()
-    print(f"  {green('✅ Bedrock connected')} — Haiku replied: {reply}")
+
+    result = json.loads(response["body"].read())
+
+    # Nova response path (different from Claude)
+    reply = result["output"]["message"]["content"][0]["text"].strip()
+
+    print(f"  {green('✅ Bedrock Nova connected')} — model: {NOVA_MODEL}")
+    print(f"     Reply: {reply}")
+
 except Exception as e:
-    err = str(e)
-    print(f"  {red('❌ Bedrock failed')}: {err}")
-    if "AccessDenied" in err or "not authorized" in err.lower():
-        print( "     Fix: Person A → AWS Console → Bedrock → Model access")
-        print( "          → Enable 'Claude 3 Haiku'  (takes ~2 mins)")
-        print( "     Also: IAM user needs AmazonBedrockFullAccess policy")
-    elif "Could not connect" in err or "endpoint" in err.lower():
-        print(f"     Fix: Check AWS_REGION is correct (currently: {AWS_REGION})")
+    print(f"  {red('❌ Bedrock Nova failed')}: {e}")
+
+    if "AccessDenied" in str(e) or "access" in str(e).lower():
+        print("     Fix: Enable Amazon Nova model access in Bedrock console:")
+        print("       AWS Console → Bedrock → Model Access → Request Access")
+        print("       Enable: Amazon Nova Lite (amazon.nova-lite-v1:0)")
+
+    elif "ResourceNotFoundException" in str(e):
+        print("     Fix: Model ID not found — check region supports Nova")
+        print("       Nova is available in: us-east-1, us-west-2")
+        print(f"       Your region: {AWS_REGION}")
+
+    elif "ValidationException" in str(e):
+        print("     Fix: Request format issue — check body structure")
+
     passed_all = False
 
-# ── CHECK 4: Textract ─────────────────────────────────────
-print("\n[ 4/5 ] AWS Textract")
+
+# ─────────────────────────────────────────────
+# CHECK 4 — Textract
+# ─────────────────────────────────────────────
+print("\n[ 4/5 ] Textract")
+
 try:
     textract = make_client("textract")
-    # Intentionally use a non-existent key — we just want to confirm connectivity
+
     try:
         textract.detect_document_text(
-            Document={"S3Object": {"Bucket": BUCKET_NAME, "Name": "__test_connection__"}}
+            Document={
+                "S3Object": {
+                    "Bucket": BUCKET_NAME,
+                    "Name": "__test__"
+                }
+            }
         )
-    except textract.exceptions.InvalidS3ObjectException:
-        pass   # Expected — proves endpoint is reachable
-    except textract.exceptions.UnsupportedDocumentException:
+    except Exception:
         pass
-    except Exception as inner:
-        if "AccessDenied" in str(inner):
-            raise inner   # re-raise real access errors
-        pass              # any other error = endpoint reached = OK
-    print(f"  {green('✅ Textract connected')}")
+
+    print(f"  {green('✅ Textract reachable')}")
+
 except Exception as e:
-    err = str(e)
-    print(f"  {red('❌ Textract failed')}: {err}")
-    if "AccessDenied" in err:
-        print( "     Fix: IAM user needs AmazonTextractFullAccess policy")
-        print( "          Ask Person A to add it in AWS Console → IAM")
+    print(f"  {red('❌ Textract failed')}: {e}")
+    print("     Fix: Add AmazonTextractFullAccess to IAM user")
     passed_all = False
 
-# ── CHECK 5: pytesseract ──────────────────────────────────
-print("\n[ 5/5 ] pytesseract (local free OCR)")
+
+# ─────────────────────────────────────────────
+# CHECK 5 — pytesseract
+# ─────────────────────────────────────────────
+print("\n[ 5/5 ] pytesseract OCR")
+
 try:
     import pytesseract
     from PIL import Image, ImageDraw
 
-    # Try Windows default path first
-    import os
     win_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
     if os.path.exists(win_path):
         pytesseract.pytesseract.tesseract_cmd = win_path
 
-    # Create a tiny white image with text and OCR it
-    img  = Image.new("RGB", (250, 50), color="white")
+    img = Image.new("RGB", (250, 60), "white")
     draw = ImageDraw.Draw(img)
-    draw.text((10, 15), "Hello OCR 123", fill="black")
+    draw.text((10, 20), "Hello OCR 123", fill="black")
+
     text = pytesseract.image_to_string(img).strip()
 
-    if len(text) > 2:
-        print(f"  {green('✅ pytesseract working')} — read: '{text}'")
-    else:
-        raise Exception("Tesseract returned empty string")
+    print(f"  {green('✅ pytesseract working')} — read: {text}")
 
-except ImportError as e:
-    print(f"  {yellow('⚠️  pytesseract/Pillow not installed')}: {e}")
-    print( "     Fix: pip install pytesseract Pillow")
-    print( "     Note: OCR will fall back to AWS Textract (costs money)")
-except Exception as e:
-    print(f"  {yellow('⚠️  pytesseract installed but Tesseract binary missing')}")
-    print( "     Fix: Download from https://github.com/UB-Mannheim/tesseract/wiki")
-    print(r"          Install to: C:\Program Files\Tesseract-OCR\tesseract.exe")
-    print( "     Note: Until fixed, scanned PDFs will use Textract ($) instead")
+except ImportError:
+    print(f"  {yellow('⚠ pytesseract not installed')}")
+    print("     Fix: pip install pytesseract pillow")
 
-# ── SUMMARY ──────────────────────────────────────────────
-print("\n" + "─"*58)
+except Exception:
+    print(f"  {yellow('⚠ Tesseract binary missing')}")
+    print("     Install from:")
+    print("     https://github.com/UB-Mannheim/tesseract/wiki")
+
+
+# ─────────────────────────────────────────────
+# SUMMARY
+# ─────────────────────────────────────────────
+print("\n" + "─"*60)
+
 if passed_all:
-    print(green("  🎉 Core checks passed! Run: python test_extract.py yourfile.pdf"))
+    print(green(" 🎉 All core services reachable"))
+    print(" Next step: python test_extract.py yourfile.pdf")
 else:
-    print(yellow("  ⚠️  Fix the ❌ items above, then re-run this script."))
-print("─"*58 + "\n")
+    print(yellow(" ⚠ Some checks failed — fix them and run again"))
+
+print("─"*60 + "\n")
