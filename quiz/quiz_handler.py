@@ -70,7 +70,6 @@
 
 import boto3
 import json
-import re
 from botocore.exceptions import ClientError
 from datetime import datetime, timezone
 from boto3.dynamodb.conditions import Key
@@ -120,31 +119,6 @@ class RateLimitError(Exception):
     def __init__(self, seconds_remaining):
         self.seconds_remaining = seconds_remaining
         super().__init__(f"Please wait {seconds_remaining} seconds before generating another quiz.")
-def _safe_json_parse(raw_text):
-    """
-    Claude sometimes wraps JSON in markdown or text.
-    This extracts the first JSON array safely before parsing.
-    """
-    try:
-        raw_text = raw_text.strip()
-
-        # Remove markdown fences
-        if raw_text.startswith("```"):
-            parts = raw_text.split("```")
-            raw_text = parts[1] if len(parts) > 1 else raw_text
-            if raw_text.lower().startswith("json"):
-                raw_text = raw_text[4:]
-
-        # Extract JSON array
-        match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-        if not match:
-            raise ValueError("No JSON array found in Claude response")
-
-        json_str = match.group(0)
-        return json.loads(json_str)
-
-    except Exception as e:
-        raise ValueError(f"Failed to parse Claude JSON output: {str(e)}")
 
 
 # ── Self-assessment questions (hardcoded — zero Bedrock cost) ─────────────────
@@ -256,9 +230,8 @@ def _check_rate_limit(user_id):
                 'last_generate_at': now_iso
             },
             ConditionExpression=(
-                Attr('last_generate_at').not_exists() |
+                Attr('user_id').not_exists() |
                 Attr('last_generate_at').lte(cutoff_iso)
-               )
             )
         )
         # Write succeeded — caller is allowed through
@@ -331,22 +304,11 @@ def _get_extracted_text(user_id, filename):
 
     Returns: (preview_text: str, word_count: int, extraction_note: str)
     """
-   extracted_key = f'extracted/{user_id}/{filename}.txt'
-
-try:
-    s3.head_object(Bucket=BUCKET, Key=extracted_key)
-except s3.exceptions.ClientError:
-    return {
-        "statusCode": 202,
-        "body": json.dumps({
-            "message": "Extraction still in progress. Please try again in a few seconds."
-        })
-    }
-
-obj           = s3.get_object(Bucket=BUCKET, Key=extracted_key)
-text          = obj['Body'].read().decode('utf-8')
-words         = text.split()
-word_count    = len(words)
+    extracted_key = f'extracted/{user_id}/{filename}.txt'
+    obj           = s3.get_object(Bucket=BUCKET, Key=extracted_key)
+    text          = obj['Body'].read().decode('utf-8')
+    words         = text.split()
+    word_count    = len(words)
 
     if word_count == 0:
         raise UnreadableDocumentError(
@@ -412,7 +374,7 @@ def _generate_questions(preview_text, word_count):
         if raw.lower().startswith('json'):
             raw = raw[4:]
 
-    return _safe_json_parse(raw)
+    return json.loads(raw.strip())
 
 
 # ── Helper 5: Two-signal level detection ──────────────────────────────────────
