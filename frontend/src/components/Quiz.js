@@ -1,73 +1,166 @@
 // =============================================================================
 // src/components/Quiz.js
-// WHO WRITES THIS: Person D
-// WHAT THIS IS: Screen 2 — shows 5 questions, user picks A/B/C for each
+// Renders MCQ + self-assessment questions.
+// Calls quiz_handler action='score' on submit.
 // =============================================================================
-//
-// THIS IS THE MOST IMPORTANT UI SCREEN. Make it look great.
-// The quiz is what makes this project stand out from every other submission.
-//
-// PROPS:
-//   userId    — random user ID from App.js
-//   filename  — shown in subtitle: "These questions are about {filename}"
-//   questions — array of 5 objects: { question, options: {A,B,C}, correct }
-//   onDone(result) — call after scoring. result = { score, total, level, message }
-//
-// STATE:
-//   answers  — object like { '0': 'A', '1': 'C', '2': 'B', '3': 'A', '4': 'C' }
-//              starts as {} and fills up as user clicks radio buttons
-//   loading  — boolean
-//   error    — string
-//
-// COMPUTED (derive this from state, not store it):
-//   allAnswered = questions.every((_, i) => answers[String(i)] !== undefined)
-//
-// WHAT HAPPENS WHEN "Submit Answers" IS CLICKED:
-//   1. If !allAnswered → setError('Please answer all 5 questions.') and return
-//   2. setLoading(true)
-//   3. result = await scoreQuiz(userId, questions, answers)
-//   4. onDone(result)   ← switches to Level Result screen
-//   Catch: setError('Error: ' + e.message)  then setLoading(false)
-//
-// JSX TO BUILD:
-//   <div className="screen">
-//     <h1>Knowledge Check</h1>
-//     <p className="sub">
-//       These 5 questions are about <strong>{filename}</strong>.
-//       Your answers help us personalise the document for your level.
-//     </p>
-//
-//     {questions.map((q, i) => (
-//       <div key={i} className="card question-card">
-//         <p className="qnum">Question {i + 1} of {questions.length}</p>
-//         <p className="qtext">{q.question}</p>
-//
-//         {Object.entries(q.options).map(([key, text]) => (
-//           <label key={key} className={`option ${answers[String(i)] === key ? 'selected' : ''}`}>
-//             <input
-//               type="radio"
-//               name={`q${i}`}
-//               value={key}
-//               checked={answers[String(i)] === key}
-//               onChange={() => setAnswers({ ...answers, [String(i)]: key })}
-//             />
-//             <span className="opt-key">{key}.</span> {text}
-//           </label>
-//         ))}
-//       </div>
-//     ))}
-//
-//     {error && <p className="error">{error}</p>}
-//     <button className="btn" onClick={submit} disabled={loading || !allAnswered}>
-//       {loading ? 'Submitting...' : 'Submit Answers'}
-//     </button>
-//   </div>
-//
-// =============================================================================
-
 import { useState } from 'react';
 import { scoreQuiz } from '../api';
+import '../styles/quiz.css';
 
-export default function Quiz({ userId, filename, questions, onDone }) {
-  // TODO: implement this — full guide above
+export default function Quiz({ userId, filename, docId, quizData, onScored }) {
+  const { mcq_questions = [], self_questions = [], word_count = 0, extraction_note = 'ok' } = quizData || {};
+
+  // answers: { "0": "A", "1": "B", ... } for MCQ
+  // selfAnswers: { "background": "some", "intent": "studying" }
+  const [mcqAnswers,  setMcqAnswers]  = useState({});
+  const [selfAnswers, setSelfAnswers] = useState({});
+  const [submitting,  setSubmitting]  = useState(false);
+  const [error,       setError]       = useState('');
+
+  const allMcqAnswered  = mcq_questions.every((_, i) => mcqAnswers[String(i)]);
+  const allSelfAnswered = self_questions.every(q => selfAnswers[q.id]);
+  const canSubmit       = allMcqAnswered && allSelfAnswered;
+
+  async function handleSubmit() {
+    if (!canSubmit) {
+      setError('Please answer all questions before submitting.');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await scoreQuiz(
+        userId, docId, filename,
+        mcq_questions, mcqAnswers, selfAnswers,
+        word_count, extraction_note
+      );
+      onScored(result);
+    } catch (err) {
+      setError(err.message || 'Scoring failed. Please try again.');
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="page-container quiz-page">
+      <div className="page-header">
+        <div className="breadcrumb">
+          <span className="crumb-doc">{filename}</span>
+        </div>
+        <h1 className="page-title">Knowledge check</h1>
+        <p className="page-subtitle">
+          These questions are about <strong>{filename}</strong>.
+          Your answers help AKTE calibrate how much to explain vs. compress.
+        </p>
+        {word_count > 0 && (
+          <span className="word-badge">{word_count.toLocaleString()} words extracted</span>
+        )}
+      </div>
+
+      {/* MCQ Questions */}
+      <section className="quiz-section">
+        <h2 className="section-label">Document questions</h2>
+        {mcq_questions.map((q, i) => (
+          <QuestionCard
+            key={i}
+            index={i}
+            total={mcq_questions.length}
+            question={q.question}
+            options={q.options}
+            selected={mcqAnswers[String(i)]}
+            onSelect={key => setMcqAnswers(prev => ({ ...prev, [String(i)]: key }))}
+          />
+        ))}
+      </section>
+
+      {/* Self-assessment questions */}
+      <section className="quiz-section">
+        <h2 className="section-label">About you</h2>
+        <p className="section-note">
+          These don't affect your score — they help fine-tune the rewrite.
+        </p>
+        {self_questions.map(q => (
+          <SelfQuestionCard
+            key={q.id}
+            question={q.question}
+            options={q.options}
+            selected={selfAnswers[q.id]}
+            onSelect={val => setSelfAnswers(prev => ({ ...prev, [q.id]: val }))}
+          />
+        ))}
+      </section>
+
+      {error && <div className="quiz-error"><span>⚠</span> {error}</div>}
+
+      <div className="quiz-footer">
+        <div className="answered-count">
+          {Object.keys(mcqAnswers).length} / {mcq_questions.length} answered
+        </div>
+        <button
+          className="btn-primary btn-lg"
+          onClick={handleSubmit}
+          disabled={!canSubmit || submitting}
+        >
+          {submitting ? 'Scoring…' : 'Submit answers →'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── MCQ card ──────────────────────────────────────────────────────────────────
+function QuestionCard({ index, total, question, options, selected, onSelect }) {
+  return (
+    <div className={`q-card ${selected ? 'q-card--answered' : ''}`}>
+      <div className="q-meta">
+        <span className="q-num">Q{index + 1}</span>
+        <span className="q-of">of {total}</span>
+      </div>
+      <p className="q-text">{question}</p>
+      <div className="q-options">
+        {Object.entries(options).map(([key, text]) => (
+          <label
+            key={key}
+            className={`q-option ${selected === key ? 'q-option--selected' : ''}`}
+          >
+            <input
+              type="radio"
+              name={`mcq_${index}`}
+              value={key}
+              checked={selected === key}
+              onChange={() => onSelect(key)}
+            />
+            <span className="q-option-key">{key}</span>
+            <span className="q-option-text">{text}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Self-assessment card ──────────────────────────────────────────────────────
+function SelfQuestionCard({ question, options, selected, onSelect }) {
+  return (
+    <div className={`q-card q-card--self ${selected ? 'q-card--answered' : ''}`}>
+      <p className="q-text">{question}</p>
+      <div className="q-options q-options--grid">
+        {Object.entries(options).map(([key, text]) => (
+          <label
+            key={key}
+            className={`q-option q-option--pill ${selected === key ? 'q-option--selected' : ''}`}
+          >
+            <input
+              type="radio"
+              name={`self_${question}`}
+              value={key}
+              checked={selected === key}
+              onChange={() => onSelect(key)}
+            />
+            <span className="q-option-text">{text}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
 }

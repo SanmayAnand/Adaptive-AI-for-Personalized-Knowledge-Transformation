@@ -1,121 +1,84 @@
 # =============================================================================
-# main_handler.py
-# WHO WRITES THIS: Person A
-# WHAT THIS IS: The main Lambda function (akte-main) that runs the full pipeline
-# =============================================================================
+# main_handler.py  —  root of repo, Person A deploys this as akte-main Lambda
 #
-# WHAT THIS FILE DOES:
-#   When the user clicks "Transform Document" on the website, the frontend
-#   calls this Lambda. This file does 4 things in order:
-#     1. Looks up the user's level (beginner/intermediate/expert) from DynamoDB
-#     2. Calls ocr.extract_text() to read the PDF and get clean text
-#     3. Calls transform.rewrite() to rewrite that text for the user's level
-#     4. Saves the result to S3 and returns a download link to the frontend
+# HOW TO DEPLOY (Person A does this):
+#   1. Put these files in one folder:
+#        main_handler.py   ← this file
+#        transform.py      ← Person C
+#        ocr.py            ← Person B
+#   2. zip -r akte_main.zip main_handler.py transform.py ocr.py
+#   3. Upload zip to akte-main Lambda
+#   4. Add pdfplumber Lambda Layer to akte-main
+#   5. Set Lambda env var: BUCKET_NAME = akte-bucket (or ocr-ai-for-bharat1)
 #
-# HOW THE FRONTEND CALLS THIS:
-#   POST request to this Lambda's URL
-#   Body (JSON): { "user_id": "user_abc123", "filename": "myfile.pdf" }
-#   Response:    { "download_url": "https://s3.presigned.url..." }
+# CALLED BY:
+#   React frontend — after quiz is complete and user clicks "Transform"
 #
-# HOW TO DEPLOY (Person A does this on Day 2):
-#   1. Make sure you have ocr.py (from Person B) and transform.py (from Person C)
-#   2. Zip all 3 files together: main_handler.py + ocr.py + transform.py
-#      Command: zip akte_main.zip main_handler.py ocr.py transform.py
-#   3. Go to AWS Lambda → akte-main → Code → Upload .zip → Deploy
-#   4. Add the pdfplumber Lambda Layer to this function (Person B needs it)
+# REQUEST BODY:
+#   { "user_id": "abc123", "filename": "biology_notes.pdf", "doc_id": "abc123#biology_notes.pdf#20250301120000" }
 #
-# AWS PERMISSIONS NEEDED (already set if you created akte-lambda-role correctly):
-#   S3: GetObject, PutObject, GetPresignedUrl
-#   DynamoDB: GetItem
-#
+# RESPONSE (200):
+#   { "download_url": "...", "level": "...", "intent": "...", "annotations": [...] }
 # =============================================================================
 
-import json
 import boto3
+import json
+import os
+import logging
+import ocr        # Person B — extract_text(bucket, key) -> str
+import transform  # Person C — run(user_id, filename, doc_id) -> dict
 
-# Import Person B's and Person C's modules
-# These files must be in the same zip when deployed
-import ocr        # from ocr/ocr.py
-import transform  # from transform/transform.py
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-s3       = boto3.client('s3')
-dynamodb = boto3.resource('dynamodb')
-
-BUCKET = 'akte-bucket'   # must match the S3 bucket Person A created
-TABLE  = 'akte-users'    # must match the DynamoDB table Person A created
-
-
-def _get_user_level(user_id):
-    """
-    Look up the user's level from DynamoDB.
-    Returns 'beginner', 'intermediate', or 'expert'.
-    If the user isn't found (they skipped the quiz), default to 'intermediate'.
-
-    HOW TO IMPLEMENT:
-      response = dynamodb.Table(TABLE).get_item(Key={'user_id': user_id})
-      return response.get('Item', {}).get('level', 'intermediate')
-      Wrap in try/except — always return a string, never crash.
-    """
-    # TODO: implement this
-    pass
-
-
-def _save_and_get_link(user_id, filename, text):
-    """
-    Save the rewritten text to S3 and return a pre-signed download URL.
-
-    WHERE IT SAVES: s3://akte-bucket/outputs/{user_id}_{filename}.txt
-    WHAT IT RETURNS: a pre-signed URL string (expires in 1 hour)
-
-    HOW TO IMPLEMENT:
-      key = f'outputs/{user_id}_{filename}.txt'
-      s3.put_object(Bucket=BUCKET, Key=key, Body=text.encode('utf-8'))
-      url = s3.generate_presigned_url('get_object',
-                Params={'Bucket': BUCKET, 'Key': key},
-                ExpiresIn=3600)
-      return url
-    """
-    # TODO: implement this
-    pass
+s3     = boto3.client('s3', region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
+BUCKET = os.environ.get('BUCKET_NAME', 'akte-bucket')
+CORS   = {'Access-Control-Allow-Origin': '*'}
 
 
 def lambda_handler(event, context):
-    """
-    Entry point. AWS calls this function when the Lambda is triggered.
+    try:
+        body     = json.loads(event.get('body', '{}'))
+        user_id  = body.get('user_id')
+        filename = body.get('filename')
+        doc_id   = body.get('doc_id')
+    except Exception:
+        return {'statusCode': 400, 'headers': CORS,
+                'body': json.dumps({'error': 'Invalid JSON'})}
 
-    HOW TO IMPLEMENT:
-      1. Parse the body:
-           body = json.loads(event.get('body', '{}'))
-           user_id  = body.get('user_id', 'guest')
-           filename = body.get('filename', '')
+    if not all([user_id, filename, doc_id]):
+        return {'statusCode': 400, 'headers': CORS,
+                'body': json.dumps({'error': 'user_id, filename, doc_id all required'})}
 
-      2. If filename is empty, return a 400 error:
-           return {
-             'statusCode': 400,
-             'headers': {'Access-Control-Allow-Origin': '*'},
-             'body': json.dumps({'error': 'filename is required'})
-           }
+    try:
+        # Person C's transform.run() handles everything:
+        # reads extracted text, reads level+intent from DDB,
+        # rewrites, generates annotations, saves to S3, updates DDB.
+        result = transform.run(user_id, filename, doc_id)
 
-      3. Get user level:
-           level = _get_user_level(user_id)
+        # Pre-signed URL valid 2 hours — enough for the user to download
+        url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': BUCKET, 'Key': result['s3_key']},
+            ExpiresIn=7200
+        )
 
-      4. Extract text from PDF (calls Person B's code):
-           text = ocr.extract_text(BUCKET, f'uploads/{filename}')
+        return {
+            'statusCode': 200,
+            'headers': CORS,
+            'body': json.dumps({
+                'download_url': url,
+                'level':        result['level'],
+                'intent':       result['intent'],
+                'annotations':  result['annotations'],
+                's3_key':       result['s3_key'],
+            })
+        }
 
-      5. Rewrite text for user's level (calls Person C's code):
-           rewritten = transform.rewrite(text, level)
-
-      6. Save and get download link:
-           download_url = _save_and_get_link(user_id, filename, rewritten)
-
-      7. Return success:
-           return {
-             'statusCode': 200,
-             'headers': {'Access-Control-Allow-Origin': '*'},
-             'body': json.dumps({'download_url': download_url})
-           }
-
-      Wrap steps 3-6 in try/except and return a 500 error if anything fails.
-    """
-    # TODO: implement this
-    pass
+    except ValueError as e:
+        return {'statusCode': 422, 'headers': CORS,
+                'body': json.dumps({'error': str(e)})}
+    except Exception as e:
+        logger.error(f'[Main] Unhandled error: {e}')
+        return {'statusCode': 500, 'headers': CORS,
+                'body': json.dumps({'error': str(e)})}

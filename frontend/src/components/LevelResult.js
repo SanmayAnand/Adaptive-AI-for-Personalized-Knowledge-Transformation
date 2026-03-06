@@ -1,66 +1,134 @@
 // =============================================================================
 // src/components/LevelResult.js
-// WHO WRITES THIS: Person D
-// WHAT THIS IS: Screen 3 — shows score and detected level, lets user override,
-//               has the "Transform Document" button
+// Shows detected level, score breakdown, intent.
+// Triggers transform → hands off to StudyView.
 // =============================================================================
-//
-// PROPS:
-//   result        — { score, total, level, message } from the quiz score step
-//   userId        — random user ID
-//   filename      — the PDF filename
-//   onTransform(data) — call after transform succeeds. data = { download_url }
-//
-// STATE:
-//   selectedLevel  — starts as result.level, user can change it with override buttons
-//   loading        — boolean
-//   error          — string
-//
-// LEVEL DESCRIPTIONS (show one based on selectedLevel):
-//   beginner:     "We'll explain everything step by step with examples and analogies."
-//   intermediate: "We'll keep the technical detail but trim the obvious basics."
-//   expert:       "We'll condense everything down to the key insights only."
-//
-// WHAT HAPPENS WHEN "Transform Document" IS CLICKED:
-//   1. setLoading(true)
-//   2. (Optional but good) POST to profile Lambda to save the selectedLevel override
-//        await fetch(PROFILE_URL, { method: 'POST', body: { user_id, level: selectedLevel } })
-//        But keep this simple — if it fails, don't crash. The quiz already saved a level.
-//   3. data = await transformDoc(userId, filename)
-//   4. onTransform(data)   ← switches to Download screen
-//   Catch: setError('Error: ' + e.message)  then setLoading(false)
-//
-// JSX TO BUILD:
-//   <div className="screen">
-//     <h1>Your Knowledge Level</h1>
-//     <div className="card level-card">
-//       <div className="level-badge">{result.level.toUpperCase()}</div>
-//       <div className="score">Score: {result.score} / {result.total}</div>
-//       <div className="level-desc">{description for result.level}</div>
-//     </div>
-//
-//     <p>Not quite right? Override your level:</p>
-//     <div className="override-row">
-//       {['beginner', 'intermediate', 'expert'].map(lvl => (
-//         <button key={lvl}
-//           className={`btn-sec ${selectedLevel === lvl ? 'active' : ''}`}
-//           onClick={() => setSelectedLevel(lvl)}>
-//           {lvl}
-//         </button>
-//       ))}
-//     </div>
-//
-//     {error && <p className="error">{error}</p>}
-//     <button className="btn" onClick={handle} disabled={loading}>
-//       {loading ? 'Transforming...' : `Transform as ${selectedLevel.toUpperCase()}`}
-//     </button>
-//   </div>
-//
-// =============================================================================
-
 import { useState } from 'react';
-import { transformDoc } from '../api';
+import { transformDocument, fetchDocumentText } from '../api';
+import '../styles/level.css';
 
-export default function LevelResult({ result, userId, filename, onTransform }) {
-  // TODO: implement this — full guide above
+const LEVEL_META = {
+  beginner: {
+    emoji: '🌱',
+    label: 'Beginner',
+    color: '#2d6a4f',
+    bg: '#d8f3dc',
+    desc: 'Inline explanations and analogies will be added throughout the document.',
+  },
+  intermediate: {
+    emoji: '📖',
+    label: 'Intermediate',
+    color: '#1d3557',
+    bg: '#e0f0ff',
+    desc: 'Complex terms will be clarified. Core content stays intact.',
+  },
+  expert: {
+    emoji: '⚡',
+    label: 'Expert',
+    color: '#7b2d8b',
+    bg: '#f3e8ff',
+    desc: 'Document condensed. All obvious content removed. Just the essentials.',
+  },
+};
+
+const INTENT_LABELS = {
+  studying:   { icon: '🎯', label: 'Study Mode' },
+  applying:   { icon: '🔧', label: 'Application Mode' },
+  explaining: { icon: '💬', label: 'Explain-to-Others Mode' },
+  exploring:  { icon: '🔍', label: 'Exploration Mode' },
+};
+
+export default function LevelResult({ userId, filename, docId, scoreData, onTransformDone }) {
+  const { score, level, intent } = scoreData;
+  const meta = LEVEL_META[level] || LEVEL_META.intermediate;
+  const intentMeta = INTENT_LABELS[intent] || INTENT_LABELS.studying;
+
+  const [loading,  setLoading]  = useState(false);
+  const [status,   setStatus]   = useState('');
+  const [error,    setError]    = useState('');
+
+  async function handleTransform() {
+    setLoading(true);
+    setError('');
+    try {
+      setStatus('Rewriting your document with AI… (this takes 30–90 seconds)');
+      const result = await transformDocument(userId, filename, docId);
+      // result = { download_url, level, intent, annotations, s3_key }
+
+      // Fetch the actual text content for inline reading view
+      setStatus('Loading your personalised document…');
+      const transformedText = await fetchDocumentText(result.download_url);
+
+      onTransformDone({
+        downloadUrl:     result.download_url,
+        level:           result.level,
+        intent:          result.intent,
+        annotations:     result.annotations || [],
+        transformedText: transformedText,
+        originalText:    null,   // optional: could load original extracted text too
+        filename:        filename,
+        docId:           docId,
+      });
+    } catch (err) {
+      setError(err.message || 'Transform failed. Please try again.');
+      setLoading(false);
+      setStatus('');
+    }
+  }
+
+  return (
+    <div className="page-container level-page">
+      <div className="page-header">
+        <div className="breadcrumb">
+          <span className="crumb-doc">{filename}</span>
+        </div>
+        <h1 className="page-title">Your knowledge level</h1>
+      </div>
+
+      <div className="level-card" style={{ borderColor: meta.color, background: meta.bg }}>
+        <div className="level-badge-row">
+          <span className="level-emoji">{meta.emoji}</span>
+          <span className="level-name" style={{ color: meta.color }}>{meta.label}</span>
+        </div>
+        <p className="level-desc">{meta.desc}</p>
+        <div className="level-score">
+          Score: <strong>{score} / {scoreData.total || 5}</strong>
+        </div>
+      </div>
+
+      <div className="intent-row">
+        <span className="intent-icon">{intentMeta.icon}</span>
+        <div>
+          <div className="intent-label">{intentMeta.label}</div>
+          <div className="intent-sub">Your reading intent shapes how the content is framed.</div>
+        </div>
+      </div>
+
+      <div className="what-happens">
+        <h3 className="what-title">What happens next</h3>
+        <ul className="what-list">
+          <li>The full document is rewritten for the <strong>{meta.label}</strong> level</li>
+          <li>Key terms become clickable — hover for instant explanations</li>
+          <li>You can toggle between the original and personalised version</li>
+          <li>Download the personalised version anytime</li>
+        </ul>
+      </div>
+
+      {error && <div className="level-error"><span>⚠</span> {error}</div>}
+
+      {loading ? (
+        <div className="transform-loading">
+          <div className="loading-spinner" />
+          <p>{status}</p>
+          <p className="transform-note">
+            Larger documents take longer. Don't close this tab.
+          </p>
+        </div>
+      ) : (
+        <button className="btn-primary btn-lg" onClick={handleTransform}>
+          {meta.emoji} Generate my {meta.label} version →
+        </button>
+      )}
+    </div>
+  );
 }

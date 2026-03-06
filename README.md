@@ -1,3 +1,4 @@
+
 # AKTE — Adaptive Knowledge Transformation Engine
 ### Team 600CR · AWS AI for Bharat Hackathon
 
@@ -5,7 +6,7 @@
 
 ## What this app does
 1. User uploads a PDF on the website
-2. AI reads the PDF and generates 5 quiz questions about it
+2. AI reads the PDF and gen+erates 5 quiz questions about it
 3. User answers the quiz → app detects if they're a beginner / intermediate / expert
 4. The whole PDF is rewritten to match that level
 5. User downloads the personalized document

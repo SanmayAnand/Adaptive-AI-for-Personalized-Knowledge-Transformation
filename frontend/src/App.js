@@ -1,90 +1,138 @@
 // =============================================================================
-// src/App.js
-// WHO WRITES THIS: Person D
-// WHAT THIS IS: The root component. Controls which screen is shown.
+// src/App.js  —  root component, owns all global state
 // =============================================================================
-//
-// USER_ID:
-//   We don't have a login system. Instead, generate a random ID once when the
-//   app loads, and use it for all API calls. This ties together the quiz score
-//   and the transform request for the same "session".
-//   const USER_ID = 'user_' + Math.random().toString(36).slice(2, 10);
-//   Put this OUTSIDE the component (at module level) so it doesn't regenerate on re-renders.
-//
-// STATE (4 pieces):
-//   page:          'upload' | 'quiz' | 'level' | 'download'   — which screen to show
-//   filename:      string | null    — the PDF filename, needed by quiz + transform
-//   questions:     array            — the 5 question objects from generate step
-//   quizResult:    object | null    — { score, total, level, message }
-//   downloadData:  object | null    — { download_url }
-//
-// LAYOUT:
-//   <nav> bar at top — shows "AKTE" logo and subtitle
-//   Progress indicator — 4 steps: Upload → Quiz → Level → Transform
-//     The active step matches the current page.
-//   Then render the correct screen component based on `page`.
-//
-// SCREEN TRANSITIONS:
-//   <Upload onDone={(fname, qs) => { setFilename(fname); setQuestions(qs); setPage('quiz'); }} />
-//   <Quiz   onDone={(result)    => { setQuizResult(result); setPage('level'); }} />
-//   <LevelResult onTransform={(data) => { setDownloadData(data); setPage('download'); }} />
-//   <Download    onReset={()   => { setPage('upload'); setFilename(null); }} />
-//
-// HOW TO IMPLEMENT:
-//   import { useState } from 'react';
-//   import Upload      from './components/Upload';
-//   import Quiz        from './components/Quiz';
-//   import LevelResult from './components/LevelResult';
-//   import Download    from './components/Download';
-//   import './App.css';
-//
-//   const USER_ID = 'user_' + Math.random().toString(36).slice(2, 10);
-//
-//   export default function App() {
-//     const [page, setPage]               = useState('upload');
-//     const [filename, setFilename]       = useState(null);
-//     const [questions, setQuestions]     = useState([]);
-//     const [quizResult, setQuizResult]   = useState(null);
-//     const [downloadData, setDownloadData] = useState(null);
-//
-//     return (
-//       <div>
-//         <nav className="nav">
-//           <span className="logo">AKTE</span>
-//           <span className="subtitle">Adaptive Knowledge Transformation Engine</span>
-//         </nav>
-//
-//         <div className="progress">
-//           {['Upload', 'Quiz', 'Level', 'Transform'].map((label, i) => (
-//             <span key={label}
-//               className={`step ${ ['upload','quiz','level','download'][i] === page ? 'active' : '' }`}>
-//               {i + 1}. {label}
-//             </span>
-//           ))}
-//         </div>
-//
-//         {page === 'upload'   && <Upload userId={USER_ID}
-//                                   onDone={(fname, qs) => { setFilename(fname); setQuestions(qs); setPage('quiz'); }} />}
-//         {page === 'quiz'     && <Quiz userId={USER_ID} filename={filename} questions={questions}
-//                                   onDone={(r) => { setQuizResult(r); setPage('level'); }} />}
-//         {page === 'level'    && <LevelResult result={quizResult} userId={USER_ID} filename={filename}
-//                                   onTransform={(d) => { setDownloadData(d); setPage('download'); }} />}
-//         {page === 'download' && <Download data={downloadData}
-//                                   onReset={() => { setPage('upload'); setFilename(null); }} />}
-//       </div>
-//     );
-//   }
-// =============================================================================
-
-import { useState } from 'react';
-import Upload      from './components/Upload';
-import Quiz        from './components/Quiz';
+import { useState, useCallback } from 'react';
+import Upload    from './components/Upload';
+import Quiz      from './components/Quiz';
 import LevelResult from './components/LevelResult';
-import Download    from './components/Download';
-import './App.css';
+import StudyView from './components/StudyView';
+import Sidebar   from './components/Sidebar';
+import './styles/app.css';
 
-const USER_ID = 'user_' + Math.random().toString(36).slice(2, 10);
+// Generate a persistent user_id for this session.
+// In production you'd use real auth. For the hackathon, localStorage is fine.
+function getOrCreateUserId() {
+  const key = 'akte_user_id';
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = 'user_' + Math.random().toString(36).slice(2, 12);
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
 
+const USER_ID = getOrCreateUserId();
+
+// Page states: upload → quiz → level → study
+// The sidebar is always visible once the user has at least one document.
 export default function App() {
-  // TODO: implement this — full guide above
+  const [page, setPage] = useState('upload');
+
+  // Upload step
+  const [uploadData, setUploadData] = useState(null);
+  // { filename (sanitised), docId, contentType }
+
+  // Quiz step
+  const [quizData, setQuizData] = useState(null);
+  // { mcqQuestions, selfQuestions, wordCount, extractionNote }
+
+  // After quiz scoring
+  const [scoreData, setScoreData] = useState(null);
+  // { score, level, intent, docId }
+
+  // After transform
+  const [studyData, setStudyData] = useState(null);
+  // { downloadUrl, level, intent, annotations, originalText, transformedText, filename }
+
+  // Sidebar doc history (could be fetched from quiz_handler action='history')
+  const [docHistory, setDocHistory] = useState([]);
+
+  const handleUploadDone = useCallback((data) => {
+    // data = { filename, docId }
+    setUploadData(data);
+    setPage('quiz');
+  }, []);
+
+  const handleQuizLoaded = useCallback((data) => {
+    setQuizData(data);
+  }, []);
+
+  const handleScored = useCallback((data) => {
+    // data = { score, level, intent, doc_id }
+    setScoreData(data);
+    setPage('level');
+  }, []);
+
+  const handleTransformDone = useCallback((data) => {
+    // data = { downloadUrl, level, intent, annotations, originalText, transformedText, filename }
+    setStudyData(data);
+    // Add to sidebar history
+    setDocHistory(prev => [{
+      filename: data.filename,
+      level: data.level,
+      docId: scoreData?.doc_id,
+      at: new Date().toISOString(),
+    }, ...prev]);
+    setPage('study');
+  }, [scoreData]);
+
+  const handleNewDoc = useCallback(() => {
+    setUploadData(null);
+    setQuizData(null);
+    setScoreData(null);
+    setStudyData(null);
+    setPage('upload');
+  }, []);
+
+  const showSidebar = docHistory.length > 0 || page === 'study';
+
+  return (
+    <div className={`app-shell ${showSidebar ? 'has-sidebar' : ''}`}>
+      {showSidebar && (
+        <Sidebar
+          userId={USER_ID}
+          history={docHistory}
+          currentPage={page}
+          onNewDoc={handleNewDoc}
+        />
+      )}
+
+      <main className="app-main">
+        {page === 'upload' && (
+          <Upload
+            userId={USER_ID}
+            onDone={handleUploadDone}
+            onQuizLoaded={handleQuizLoaded}
+          />
+        )}
+
+        {page === 'quiz' && uploadData && (
+          <Quiz
+            userId={USER_ID}
+            filename={uploadData.filename}
+            docId={uploadData.docId}
+            quizData={quizData}
+            onScored={handleScored}
+          />
+        )}
+
+        {page === 'level' && scoreData && (
+          <LevelResult
+            userId={USER_ID}
+            filename={uploadData?.filename}
+            docId={scoreData.doc_id}
+            scoreData={scoreData}
+            onTransformDone={handleTransformDone}
+          />
+        )}
+
+        {page === 'study' && studyData && (
+          <StudyView
+            data={studyData}
+            onNewDoc={handleNewDoc}
+          />
+        )}
+      </main>
+    </div>
+  );
 }

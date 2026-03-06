@@ -1,95 +1,114 @@
 // =============================================================================
-// src/api.js
-// WHO WRITES THIS: Person D
-// WHAT THIS IS: All calls to the backend Lambdas in one place
+// src/api.js  —  all Lambda calls live here
+//
+// SETUP: Replace these URLs once Person A deploys and shares Lambda Function URLs
+// Person A will message you something like:
+//   akte-upload:  https://xxxx.lambda-url.us-east-1.on.aws/
+//   akte-quiz:    https://yyyy.lambda-url.us-east-1.on.aws/
+//   akte-main:    https://zzzz.lambda-url.us-east-1.on.aws/
 // =============================================================================
-//
-// IMPORTANT: Replace the 4 placeholder URLs below once Person A shares them.
-// Person A will post the URLs in the group chat after deploying the Lambdas.
-//
+
+const LAMBDA_URLS = {
+  upload:  process.env.REACT_APP_UPLOAD_URL  || 'https://gkflvib3kj6fcsf7jdgoucg66m0lsrsp.lambda-url.us-east-1.on.aws/',
+  quiz:    process.env.REACT_APP_QUIZ_URL    || 'https://2z6as6xrcozizucl2knynd2y7i0xmgao.lambda-url.us-east-1.on.aws/',
+  main:    process.env.REACT_APP_MAIN_URL    || 'https://qcjoawokvwqsnm7xttf6mxt3oa0dbxxp.lambda-url.us-east-1.on.aws/',
+};
+
+// ── Helper ────────────────────────────────────────────────────────────────────
+async function post(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
 // =============================================================================
+// STEP 1 — Get a pre-signed upload URL
+// upload_handler.py returns { upload_url, filename (sanitised), s3_key, content_type }
+// IMPORTANT: always use the returned `filename` (sanitised) in all future calls
+// =============================================================================
+export async function getUploadUrl(userId, rawFilename) {
+  return post(LAMBDA_URLS.upload, { user_id: userId, filename: rawFilename });
+}
 
-const URLS = {
-  upload:    'https://REPLACE_WITH_AKTE_UPLOAD_LAMBDA_URL',    // ← Person A gives you this
-  quiz:      'https://REPLACE_WITH_AKTE_QUIZ_LAMBDA_URL',      // ← Person A gives you this
-  profile:   'https://REPLACE_WITH_AKTE_PROFILE_LAMBDA_URL',   // ← Person A gives you this
-  transform: 'https://REPLACE_WITH_AKTE_MAIN_LAMBDA_URL',      // ← Person A gives you this
-};
+// =============================================================================
+// STEP 2 — PUT file directly to S3 using the pre-signed URL
+// This bypasses Lambda — file goes straight from browser to S3.
+// Returns nothing on success (S3 returns 200 with empty body).
+// =============================================================================
+export async function uploadFileToS3(presignedUrl, file, contentType) {
+  const res = await fetch(presignedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,                // raw bytes — NOT base64
+  });
+  if (!res.ok) throw new Error(`S3 upload failed: HTTP ${res.status}`);
+}
 
+// =============================================================================
+// STEP 3 — Poll until Person B's OCR extraction is done
+// quiz_handler action='check_ready' — returns { ready: false } or { ready: true, doc_id }
+// =============================================================================
+export async function checkReady(userId, filename) {
+  return post(LAMBDA_URLS.quiz, { action: 'check_ready', user_id: userId, filename });
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// uploadPDF(file)
-// Sends the PDF file to the upload Lambda as base64-encoded bytes.
-// Returns: { message: 'uploaded', filename: '...' }
-//
-// HOW TO IMPLEMENT:
-//   const b64 = await new Promise((resolve, reject) => {
-//     const reader = new FileReader();
-//     reader.onload  = () => resolve(reader.result.split(',')[1]);  // take the base64 part after the comma
-//     reader.onerror = reject;
-//     reader.readAsDataURL(file);
-//   });
-//   const response = await fetch(`${URLS.upload}?filename=${encodeURIComponent(file.name)}`, {
-//     method: 'POST',
-//     body: b64,    // NOTE: no Content-Type header — body is plain base64 string
-//   });
-//   return response.json();
-// ─────────────────────────────────────────────────────────────────────────────
-export const uploadPDF = async (file) => {
-  // TODO: implement this
-};
+// Poll with interval. Resolves when ready, rejects after maxAttempts.
+export async function pollUntilReady(userId, filename, onProgress, intervalMs = 3000, maxAttempts = 40) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const result = await checkReady(userId, filename);
+    if (result.ready) return result;           // { ready: true, doc_id: "..." }
+    if (onProgress) onProgress(i, maxAttempts);
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  throw new Error('OCR extraction timed out. Please try again.');
+}
 
+// =============================================================================
+// STEP 4 — Generate quiz questions about the document
+// quiz_handler action='generate' — returns { self_questions, mcq_questions, word_count, extraction_note }
+// =============================================================================
+export async function generateQuiz(userId, filename) {
+  return post(LAMBDA_URLS.quiz, { action: 'generate', user_id: userId, filename });
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// generateQuiz(filename)
-// Asks the quiz Lambda to generate 5 questions from the uploaded PDF.
-// Returns: { questions: [ {question, options: {A,B,C}, correct}, ... ] }
-//
-// HOW TO IMPLEMENT:
-//   const response = await fetch(URLS.quiz, {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ action: 'generate', filename }),
-//   });
-//   return response.json();
-// ─────────────────────────────────────────────────────────────────────────────
-export const generateQuiz = async (filename) => {
-  // TODO: implement this
-};
+// =============================================================================
+// STEP 5 — Score the quiz and save level to DynamoDB
+// quiz_handler action='score'
+// Returns { score, level, intent, doc_id }
+// =============================================================================
+export async function scoreQuiz(userId, docId, filename, mcqQuestions, mcqAnswers, selfAnswers, wordCount, extractionNote) {
+  return post(LAMBDA_URLS.quiz, {
+    action:          'score',
+    user_id:         userId,
+    doc_id:          docId,
+    filename:        filename,
+    mcq_questions:   mcqQuestions,
+    mcq_answers:     mcqAnswers,
+    self_answers:    selfAnswers,
+    word_count:      wordCount,
+    extraction_note: extractionNote,
+  });
+}
 
+// =============================================================================
+// STEP 6 — Transform the document
+// main_handler.py — calls transform.run() which calls ocr then AI rewriting
+// Returns { download_url, level, intent, annotations, s3_key }
+// =============================================================================
+export async function transformDocument(userId, filename, docId) {
+  return post(LAMBDA_URLS.main, { user_id: userId, filename, doc_id: docId });
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// scoreQuiz(userId, questions, answers)
-// Sends the user's answers to the quiz Lambda. Gets back their score and level.
-// answers format: { '0': 'A', '1': 'C', '2': 'B', '3': 'A', '4': 'C' }
-// Returns: { score: 3, total: 5, level: 'intermediate', message: '...' }
-//
-// HOW TO IMPLEMENT:
-//   const response = await fetch(URLS.quiz, {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ action: 'score', user_id: userId, questions, answers }),
-//   });
-//   return response.json();
-// ─────────────────────────────────────────────────────────────────────────────
-export const scoreQuiz = async (userId, questions, answers) => {
-  // TODO: implement this
-};
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// transformDoc(userId, filename)
-// Triggers the full pipeline: OCR → AI rewrite → save to S3 → return download link.
-// Returns: { download_url: 'https://s3.presigned.url...' }
-//
-// HOW TO IMPLEMENT:
-//   const response = await fetch(URLS.transform, {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ user_id: userId, filename }),
-//   });
-//   return response.json();
-// ─────────────────────────────────────────────────────────────────────────────
-export const transformDoc = async (userId, filename) => {
-  // TODO: implement this
-};
+// =============================================================================
+// UTIL — Fetch the text content of a pre-signed URL for the learning view
+// =============================================================================
+export async function fetchDocumentText(presignedUrl) {
+  const res = await fetch(presignedUrl);
+  if (!res.ok) throw new Error(`Failed to fetch document: HTTP ${res.status}`);
+  return res.text();
+}

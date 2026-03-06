@@ -1,0 +1,92 @@
+/* upload.css */
+.upload-area-wrapper { margin-bottom: 48px; }
+
+.upload-dropzone {
+  border: 1.5px dashed var(--border-dark);
+  border-radius: var(--radius-lg);
+  padding: 48px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  background: var(--bg-page);
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.upload-dropzone:hover,
+.upload-dropzone.has-file { border-color: var(--accent); border-style: solid; }
+.upload-dropzone.loading  { border-style: solid; cursor: default; border-color: var(--border-dark); }
+
+.dropzone-empty .drop-icon { font-size: 32px; margin-bottom: 12px; }
+.drop-label { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+.drop-sub   { font-size: 13px; color: var(--text-muted); }
+
+.dropzone-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 440px;
+  text-align: left;
+}
+.file-icon { font-size: 28px; }
+.file-info { flex: 1; }
+.file-name { font-size: 15px; font-weight: 500; color: var(--text); display: block; }
+.file-size { font-size: 12px; color: var(--text-muted); }
+.file-remove {
+  width: 28px; height: 28px;
+  border: none; background: none;
+  font-size: 20px; color: var(--text-muted);
+  cursor: pointer; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s;
+}
+.file-remove:hover { background: var(--bg-hover); color: var(--text); }
+
+.dropzone-loading {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 16px;
+}
+.loading-label { font-size: 14px; color: var(--text-muted); }
+
+.progress-bar {
+  width: 260px; height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--text);
+  transition: width .4s ease;
+}
+
+.upload-error {
+  display: flex; align-items: center; gap: 8px;
+  color: #c0392b;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.upload-how {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+.how-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-muted);
+}
+.step-num {
+  width: 22px; height: 22px;
+  border: 1.5px solid var(--border-dark);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: var(--text);
+}
+.how-arrow { color: var(--text-light); font-size: 14px; }

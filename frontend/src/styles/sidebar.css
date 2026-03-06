@@ -1,0 +1,103 @@
+/* sidebar.css */
+.sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 100;
+  font-size: 14px;
+}
+
+.sidebar-top {
+  padding: 16px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+.brand-logo {
+  width: 24px; height: 24px;
+  background: var(--text);
+  color: #fff;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+}
+.brand-name { font-weight: 600; font-size: 14px; color: var(--text); }
+
+.sidebar-new {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .12s;
+  font-family: var(--font-sans);
+}
+.sidebar-new:hover { background: var(--bg-hover); color: var(--text); }
+
+.sidebar-section { padding: 0 12px; }
+
+.sidebar-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 6px 8px 4px;
+}
+
+.sidebar-empty {
+  padding: 8px;
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .12s;
+}
+.sidebar-item:hover { background: var(--bg-hover); }
+
+.sidebar-item-emoji { font-size: 14px; }
+
+.sidebar-item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sidebar-item-name {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.sidebar-item-level {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}

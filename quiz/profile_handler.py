@@ -33,41 +33,31 @@ CORS     = {'Access-Control-Allow-Origin': '*'}
 
 
 def lambda_handler(event, context):
-    """
-    HOW TO IMPLEMENT:
+    method  = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
+    body    = json.loads(event.get('body', '{}'))
+    user_id = body.get('user_id')
+    table   = dynamodb.Table(TABLE)
 
-      # Detect GET vs POST
-      method  = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
-      body    = json.loads(event.get('body', '{}'))
-      user_id = body.get('user_id')
-      table   = dynamodb.Table(TABLE)
+    if not user_id:
+        return {'statusCode': 400, 'headers': CORS,
+                'body': json.dumps({'error': 'user_id is required'})}
 
-      # Always require user_id
-      if not user_id:
-          return {'statusCode': 400, 'headers': CORS,
-                  'body': json.dumps({'error': 'user_id is required'})}
+    if method == 'GET':
+        response = table.get_item(Key={'user_id': user_id})
+        item = response.get('Item', {'user_id': user_id, 'level': 'intermediate'})
+        return {'statusCode': 200, 'headers': CORS,
+                'body': json.dumps(item)}
 
-      # ── GET: read the user's current level ────────────────────
-      if method == 'GET':
-          response = table.get_item(Key={'user_id': user_id})
-          item = response.get('Item', {'user_id': user_id, 'level': 'intermediate'})
-          return {'statusCode': 200, 'headers': CORS,
-                  'body': json.dumps(item)}
+    level = body.get('level')
+    if level not in ['beginner', 'intermediate', 'expert']:
+        return {'statusCode': 400, 'headers': CORS,
+                'body': json.dumps({'error': 'level must be beginner, intermediate, or expert'})}
 
-      # ── POST: override the user's level ───────────────────────
-      level = body.get('level')
-      if level not in ['beginner', 'intermediate', 'expert']:
-          return {'statusCode': 400, 'headers': CORS,
-                  'body': json.dumps({'error': 'level must be beginner, intermediate, or expert'})}
+    table.put_item(Item={
+        'user_id':    user_id,
+        'level':      level,
+        'updated_at': datetime.utcnow().isoformat()
+    })
 
-      table.put_item(Item={
-          'user_id':    user_id,
-          'level':      level,
-          'updated_at': datetime.utcnow().isoformat()
-      })
-
-      return {'statusCode': 200, 'headers': CORS,
-              'body': json.dumps({'level': level})}
-    """
-    # TODO: implement this
-    pass
+    return {'statusCode': 200, 'headers': CORS,
+            'body': json.dumps({'level': level})}

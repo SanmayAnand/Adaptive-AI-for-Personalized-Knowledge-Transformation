@@ -1,0 +1,60 @@
+/* level.css */
+.level-card {
+  border: 1.5px solid;
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  margin-bottom: 24px;
+}
+
+.level-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.level-emoji { font-size: 28px; }
+.level-name  { font-size: 22px; font-weight: 700; }
+.level-desc  { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+.level-score { font-size: 13px; color: var(--text-muted); }
+
+.intent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--bg-sidebar);
+  border-radius: var(--radius-lg);
+  margin-bottom: 28px;
+}
+.intent-icon  { font-size: 22px; line-height: 1; }
+.intent-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.intent-sub   { font-size: 13px; color: var(--text-muted); }
+
+.what-happens { margin-bottom: 28px; }
+.what-title   { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.what-list    { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.what-list li {
+  font-size: 14px; color: var(--text);
+  padding-left: 20px;
+  position: relative;
+  line-height: 1.5;
+}
+.what-list li::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  color: var(--text-light);
+}
+
+.level-error {
+  color: #c0392b; font-size: 13px; margin-bottom: 12px;
+  display: flex; gap: 6px; align-items: center;
+}
+
+.transform-loading {
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: 8px; padding: 20px 0;
+}
+.transform-loading p { font-size: 14px; color: var(--text-muted); }
+.transform-loading .loading-spinner { margin: 0 0 8px; }
+.transform-note { font-size: 12px; color: var(--text-light) !important; }
