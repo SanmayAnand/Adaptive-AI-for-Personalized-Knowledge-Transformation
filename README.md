@@ -1,9 +1,8 @@
-# AKTE — Adaptive Knowledge Transformation Engine
+# AKTE - Adaptive Knowledge Transformation Engine
 
-> **AWS AI for Bharat Hackathon 2025**
-> Your document, rewritten for you.
+> **AWS AI for Bharat Hackathon 2025**  
 
-AKTE takes any PDF or Word document and rewrites it to match your exact knowledge level — with highlights, inline notes, clickable term definitions, and a study game built from your document's own content.
+AKTE takes any PDF or Word document and rewrites it to match your exact knowledge level - with highlights, inline notes, clickable term definitions, and a study game built from your document's own content.
 
 ---
 
@@ -11,17 +10,17 @@ AKTE takes any PDF or Word document and rewrites it to match your exact knowledg
 
 Most learning tools summarise your content. AKTE personalises it. Upload a research paper, policy document, or textbook chapter and AKTE will:
 
-1. **Read your document** — extracts full text via AWS Textract with OCR support
-2. **Quiz you on it** — generates 5 questions from your document's actual content to assess your level
-3. **Rewrite it for you** — Claude Haiku rewrites the full document at beginner, intermediate, or expert level
-4. **Give you a rich reading environment** — highlights, inline notes, clickable term definitions, and a toggle back to the original
-5. **Let you play to learn** — flashcard game built entirely from your document
+1. **Read your document** - extracts full text via AWS Textract with OCR support
+2. **Quiz you on it** - generates 5 questions from your document's actual content to assess your level
+3. **Rewrite it for you** - Claude Haiku rewrites the full document at beginner, intermediate, or expert level
+4. **Give you a rich reading environment** - highlights, inline notes, clickable term definitions, and a toggle back to the original
+5. **Let you play to learn** - flashcard game built entirely from your document
 
 ---
 
-## Demo
+## Demo Video
 
-*(Link to demo video)*
+https://drive.google.com/drive/folders/1HunqJ1MXrf10yjEovGLfKoPwIv6ev5RR?usp=sharing
 
 ---
 
@@ -60,9 +59,9 @@ Most learning tools summarise your content. AKTE personalises it. Upload a resea
 | Service | Purpose |
 |---|---|
 | **S3** | Document storage, extracted text, transformed output, frontend hosting |
-| **Lambda** | All backend logic — upload, OCR, quiz, transform, profile |
+| **Lambda** | All backend logic - upload, OCR, quiz, transform, profile |
 | **DynamoDB** | User knowledge level persistence |
-| **Textract** | OCR — extracts text from PDFs and scanned documents |
+| **Textract** | OCR - extracts text from PDFs and scanned documents |
 | **Bedrock (Claude Haiku 3.5)** | Document rewriting and annotation generation |
 | **Bedrock (Amazon Nova Lite)** | Quiz question generation (cost-optimised) |
 
@@ -86,10 +85,10 @@ Most learning tools summarise your content. AKTE personalises it. Upload a resea
 - 8 annotated terms per document with popup explanations
 
 ### 📚 Rich Reading Environment
-- **Highlight** text in yellow, blue, or pink — saved across sessions
+- **Highlight** text in yellow, blue, or pink - saved across sessions
 - **Inline notes** anchored to any paragraph
 - **Toggle** between original and personalised version at any time
-- **Clickable terms** — underlined key terms show a 2-sentence explanation
+- **Clickable terms** - underlined key terms show a 2-sentence explanation
 - Reading progress bar
 
 ### 🎮 Study Game
@@ -209,13 +208,10 @@ aws s3 cp pdfplumber-layer.zip s3://YOUR-BUCKET/layers/pdfplumber-layer.zip
 
 Built for the **AWS AI for Bharat Hackathon 2025** by the team:
 
-Shailja Mishra
-Sanmay Anand
-Hriday Jadhav
+Shailja Mishra,
+Sanmay Anand,
+Hriday Jadhav,
 Soumadip Patra
 
 ---
 
-## License
-
-MIT
