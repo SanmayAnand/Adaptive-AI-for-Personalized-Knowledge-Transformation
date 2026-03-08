@@ -101,3 +101,19 @@
   color: var(--text-muted);
   text-transform: capitalize;
 }
+/* Sidebar items are now buttons */
+.sidebar-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sidebar-item--active {
+  background: var(--bg-hover, #f0f0f0) !important;
+  font-weight: 600;
+}
+.sidebar-item--active .sidebar-item-name {
+  font-weight: 600;
+}

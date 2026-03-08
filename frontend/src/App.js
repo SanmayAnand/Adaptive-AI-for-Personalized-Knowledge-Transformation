@@ -2,20 +2,18 @@
 // src/App.js  —  root component, owns all global state
 // =============================================================================
 import { useState, useCallback } from 'react';
-import Upload    from './components/Upload';
-import Quiz      from './components/Quiz';
+import Upload      from './components/Upload';
+import Quiz        from './components/Quiz';
 import LevelResult from './components/LevelResult';
-import StudyView from './components/StudyView';
-import Sidebar   from './components/Sidebar';
+import StudyView   from './components/StudyView';
+import Sidebar     from './components/Sidebar';
 import './styles/app.css';
 
-// Generate a persistent user_id for this session.
-// In production you'd use real auth. For the hackathon, localStorage is fine.
 function getOrCreateUserId() {
   const key = 'akte_user_id';
   let id = localStorage.getItem(key);
   if (!id) {
-    id = 'user_' + Math.random().toString(36).slice(2, 12);
+    id = 'user-' + Math.random().toString(36).replace(/[^a-z0-9]/g, '').slice(0, 10);
     localStorage.setItem(key, id);
   }
   return id;
@@ -23,32 +21,32 @@ function getOrCreateUserId() {
 
 const USER_ID = getOrCreateUserId();
 
-// Page states: upload → quiz → level → study
-// The sidebar is always visible once the user has at least one document.
+// Restore study session if returning from the game page
+function getInitialState() {
+  try {
+    const saved = sessionStorage.getItem('AKTE_STUDY_RESTORE');
+    if (saved) {
+      sessionStorage.removeItem('AKTE_STUDY_RESTORE');
+      const { studyData, docHistory } = JSON.parse(saved);
+      if (studyData) return { page: 'study', studyData, docHistory: docHistory || [studyData] };
+    }
+  } catch(e) {}
+  return { page: 'upload', studyData: null, docHistory: [] };
+}
+
+const _init = getInitialState();
+
 export default function App() {
-  const [page, setPage] = useState('upload');
-
-  // Upload step
+  const [page,       setPage]       = useState(_init.page);
   const [uploadData, setUploadData] = useState(null);
-  // { filename (sanitised), docId, contentType }
+  const [quizData,   setQuizData]   = useState(null);
+  const [scoreData,  setScoreData]  = useState(null);
+  const [studyData,  setStudyData]  = useState(_init.studyData);
 
-  // Quiz step
-  const [quizData, setQuizData] = useState(null);
-  // { mcqQuestions, selfQuestions, wordCount, extractionNote }
-
-  // After quiz scoring
-  const [scoreData, setScoreData] = useState(null);
-  // { score, level, intent, docId }
-
-  // After transform
-  const [studyData, setStudyData] = useState(null);
-  // { downloadUrl, level, intent, annotations, originalText, transformedText, filename }
-
-  // Sidebar doc history (could be fetched from quiz_handler action='history')
-  const [docHistory, setDocHistory] = useState([]);
+  // docHistory stores full studyData per doc so clicking reopens the study view
+  const [docHistory, setDocHistory] = useState(_init.docHistory);
 
   const handleUploadDone = useCallback((data) => {
-    // data = { filename, docId }
     setUploadData(data);
     setPage('quiz');
   }, []);
@@ -58,23 +56,19 @@ export default function App() {
   }, []);
 
   const handleScored = useCallback((data) => {
-    // data = { score, level, intent, doc_id }
     setScoreData(data);
     setPage('level');
   }, []);
 
   const handleTransformDone = useCallback((data) => {
-    // data = { downloadUrl, level, intent, annotations, originalText, transformedText, filename }
     setStudyData(data);
-    // Add to sidebar history
-    setDocHistory(prev => [{
-      filename: data.filename,
-      level: data.level,
-      docId: scoreData?.doc_id,
-      at: new Date().toISOString(),
-    }, ...prev]);
+    // Store full studyData — replace if same filename already exists, else prepend
+    setDocHistory(prev => {
+      const filtered = prev.filter(d => d.filename !== data.filename);
+      return [data, ...filtered];
+    });
     setPage('study');
-  }, [scoreData]);
+  }, []);
 
   const handleNewDoc = useCallback(() => {
     setUploadData(null);
@@ -82,6 +76,17 @@ export default function App() {
     setScoreData(null);
     setStudyData(null);
     setPage('upload');
+  }, []);
+
+  // Return to current study doc (e.g. after game)
+  const handleBackToDoc = useCallback(() => {
+    if (studyData) setPage('study');
+  }, [studyData]);
+
+  // Clicking a recent doc in the sidebar reopens its study view
+  const handleOpenDoc = useCallback((savedStudyData) => {
+    setStudyData(savedStudyData);
+    setPage('study');
   }, []);
 
   const showSidebar = docHistory.length > 0 || page === 'study';
@@ -93,7 +98,9 @@ export default function App() {
           userId={USER_ID}
           history={docHistory}
           currentPage={page}
+          currentFilename={studyData?.filename}
           onNewDoc={handleNewDoc}
+          onOpenDoc={handleOpenDoc}
         />
       )}
 
@@ -129,7 +136,9 @@ export default function App() {
         {page === 'study' && studyData && (
           <StudyView
             data={studyData}
+            docHistory={docHistory}
             onNewDoc={handleNewDoc}
+            onBackToDoc={handleBackToDoc}
           />
         )}
       </main>

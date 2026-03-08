@@ -1,15 +1,15 @@
 // =============================================================================
 // src/components/Download.js
 // WHO WRITES THIS: Person D
-// WHAT THIS IS: Screen 4 — shows the download link for the personalised document
+// WHAT THIS IS: Screen 4 - shows the download link for the personalised document
 // =============================================================================
 //
 // PROPS:
-//   data     — { download_url: 'https://s3.presigned.url...' }
-//   onReset  — function, called when user clicks "Transform Another Document"
+//   data     - { download_url: 'https://s3.presigned.url...' }
+//   onReset  - function, called when user clicks "Transform Another Document"
 //              App.js will go back to the Upload screen
 //
-// NO STATE NEEDED — this is a pure display screen.
+// NO STATE NEEDED - this is a pure display screen.
 //
 // NOTE ABOUT THE DOWNLOAD URL:
 //   It's a pre-signed S3 URL. It expires after 60 minutes.
@@ -34,5 +34,5 @@
 // =============================================================================
 
 export default function Download({ data, onReset }) {
-  // TODO: implement this — full guide above
+  // TODO: implement this - full guide above
 }

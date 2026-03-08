@@ -1,60 +1,81 @@
 /* level.css */
+
 .level-card {
   border: 1.5px solid;
   border-radius: var(--radius-lg);
-  padding: 24px 28px;
+  padding: 26px 30px;
   margin-bottom: 24px;
+  transition: box-shadow .2s;
 }
+.level-card:hover { box-shadow: var(--shadow); }
 
-.level-badge-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.level-emoji { font-size: 28px; }
-.level-name  { font-size: 22px; font-weight: 700; }
-.level-desc  { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; }
+.level-badge-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.level-emoji { font-size: 30px; }
+.level-name  { font-size: 24px; font-weight: 700; }
+.level-desc  { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px; }
 .level-score { font-size: 13px; color: var(--text-muted); }
 
 .intent-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 20px;
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 18px 22px;
   background: var(--bg-sidebar);
   border-radius: var(--radius-lg);
-  margin-bottom: 28px;
+  margin-bottom: 32px;
+  border: 1px solid var(--border);
 }
-.intent-icon  { font-size: 22px; line-height: 1; }
-.intent-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.intent-icon  { font-size: 24px; line-height: 1; }
+.intent-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
 .intent-sub   { font-size: 13px; color: var(--text-muted); }
 
-.what-happens { margin-bottom: 28px; }
-.what-title   { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
-.what-list    { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.what-happens { margin-bottom: 32px; }
+.what-title   { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.what-list    { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .what-list li {
   font-size: 14px; color: var(--text);
-  padding-left: 20px;
+  padding: 11px 14px 11px 16px;
   position: relative;
   line-height: 1.5;
+  background: var(--bg-sidebar);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--border-dark);
 }
-.what-list li::before {
-  content: '–';
-  position: absolute;
-  left: 0;
-  color: var(--text-light);
-}
+.what-list li strong { color: var(--accent); }
 
-.level-error {
-  color: #c0392b; font-size: 13px; margin-bottom: 12px;
-  display: flex; gap: 6px; align-items: center;
-}
+.level-error { color: #c0392b; font-size: 13px; margin-bottom: 12px; display: flex; gap: 6px; align-items: center; }
 
+/* ── Transform loading ── */
 .transform-loading {
   display: flex; flex-direction: column; align-items: flex-start;
-  gap: 8px; padding: 20px 0;
+  gap: 6px; padding: 24px 0;
 }
 .transform-loading p { font-size: 14px; color: var(--text-muted); }
 .transform-loading .loading-spinner { margin: 0 0 8px; }
 .transform-note { font-size: 12px; color: var(--text-light) !important; }
+
+/* ── While loading: study tips strip ── */
+.level-loading-tips {
+  margin-top: 32px;
+  padding: 20px 22px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.level-tips-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--text-light);
+  margin-bottom: 14px;
+}
+.level-tips-list { display: flex; flex-direction: column; gap: 10px; }
+.level-tip-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 13px; color: var(--text-muted); line-height: 1.5;
+  opacity: 0;
+  animation: fadeUp .4s ease forwards;
+}
+.level-tip-item:nth-child(1) { animation-delay: .1s; }
+.level-tip-item:nth-child(2) { animation-delay: .3s; }
+.level-tip-item:nth-child(3) { animation-delay: .5s; }
+.level-tip-item:nth-child(4) { animation-delay: .7s; }
+.level-tip-item:nth-child(5) { animation-delay: .9s; }
+.level-tip-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.level-tip-text strong { color: var(--text); }

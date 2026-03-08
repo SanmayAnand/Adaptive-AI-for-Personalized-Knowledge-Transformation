@@ -2,6 +2,7 @@
 // src/components/Quiz.js
 // Renders MCQ + self-assessment questions.
 // Calls quiz_handler action='score' on submit.
+// "I don't know" option counts as no answer (wrong) - pushes level down.
 // =============================================================================
 import { useState } from 'react';
 import { scoreQuiz } from '../api';
@@ -11,7 +12,7 @@ export default function Quiz({ userId, filename, docId, quizData, onScored }) {
   const { mcq_questions = [], self_questions = [], word_count = 0, extraction_note = 'ok' } = quizData || {};
 
   // answers: { "0": "A", "1": "B", ... } for MCQ
-  // selfAnswers: { "background": "some", "intent": "studying" }
+  // "IDK" is a special value meaning "I don't know" - treated as wrong on scoring
   const [mcqAnswers,  setMcqAnswers]  = useState({});
   const [selfAnswers, setSelfAnswers] = useState({});
   const [submitting,  setSubmitting]  = useState(false);
@@ -28,10 +29,17 @@ export default function Quiz({ userId, filename, docId, quizData, onScored }) {
     }
     setSubmitting(true);
     setError('');
+
+    // Replace "IDK" answers with a value that won't match any correct answer
+    const cleanedMcqAnswers = {};
+    Object.entries(mcqAnswers).forEach(([k, v]) => {
+      cleanedMcqAnswers[k] = v === 'IDK' ? '__idk__' : v;
+    });
+
     try {
       const result = await scoreQuiz(
         userId, docId, filename,
-        mcq_questions, mcqAnswers, selfAnswers,
+        mcq_questions, cleanedMcqAnswers, selfAnswers,
         word_count, extraction_note
       );
       onScored(result);
@@ -57,6 +65,11 @@ export default function Quiz({ userId, filename, docId, quizData, onScored }) {
         )}
       </div>
 
+      {/* Progress bar */}
+      <div className="quiz-progress-bar-outer">
+        <div className="quiz-progress-bar-fill" style={{ width: `${Math.round((Object.keys(mcqAnswers).length + Object.keys(selfAnswers).length) / (mcq_questions.length + self_questions.length) * 100)}%` }} />
+      </div>
+
       {/* MCQ Questions */}
       <section className="quiz-section">
         <h2 className="section-label">Document questions</h2>
@@ -77,7 +90,7 @@ export default function Quiz({ userId, filename, docId, quizData, onScored }) {
       <section className="quiz-section">
         <h2 className="section-label">About you</h2>
         <p className="section-note">
-          These don't affect your score — they help fine-tune the rewrite.
+          These don't affect your score - they help fine-tune the rewrite.
         </p>
         {self_questions.map(q => (
           <SelfQuestionCard
@@ -134,6 +147,21 @@ function QuestionCard({ index, total, question, options, selected, onSelect }) {
             <span className="q-option-text">{text}</span>
           </label>
         ))}
+
+        {/* I don't know option */}
+        <label
+          className={`q-option q-option--idk ${selected === 'IDK' ? 'q-option--selected q-option--idk-selected' : ''}`}
+        >
+          <input
+            type="radio"
+            name={`mcq_${index}`}
+            value="IDK"
+            checked={selected === 'IDK'}
+            onChange={() => onSelect('IDK')}
+          />
+          <span className="q-option-key">?</span>
+          <span className="q-option-text">I don't know</span>
+        </label>
       </div>
     </div>
   );
