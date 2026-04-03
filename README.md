@@ -25,34 +25,9 @@ https://drive.google.com/drive/folders/1HunqJ1MXrf10yjEovGLfKoPwIv6ev5RR?usp=sha
 ---
 
 ## Architecture
+<img width="878" height="652" alt="image" src="https://github.com/user-attachments/assets/b370e8e2-d8c6-4bdc-88b8-4df0fbc7cace" />
 
-```
-                        ┌─────────────────┐
-                        │   React Frontend │
-                        │  (S3 Static Host)│
-                        └────────┬────────┘
-                                 │ Lambda URLs
-          ┌──────────────────────┼──────────────────────┐
-          │                      │                       │
-   ┌──────▼──────┐      ┌───────▼───────┐     ┌────────▼───────┐
-   │ akte-upload │      │  akte-quiz    │     │   akte-main    │
-   │   Lambda    │      │   Lambda      │     │    Lambda      │
-   └──────┬──────┘      └───────┬───────┘     └────────┬───────┘
-          │                     │                       │
-          │ presigned URL        │ Nova Lite             │ Claude Haiku 3.5
-          ▼                     ▼                       ▼
-   ┌─────────────┐      ┌──────────────┐      ┌────────────────┐
-   │     S3      │      │   DynamoDB   │      │    Bedrock     │
-   │  (uploads)  │      │  akte-users  │      │   (Bedrock)    │
-   └──────┬──────┘      └──────────────┘      └────────────────┘
-          │ S3 trigger
-          ▼
-   ┌─────────────┐
-   │  akte-ocr   │
-   │   Lambda    │
-   │  (Textract) │
-   └─────────────┘
-```
+
 
 ### AWS Services Used
 
@@ -206,7 +181,7 @@ aws s3 cp pdfplumber-layer.zip s3://YOUR-BUCKET/layers/pdfplumber-layer.zip
 
 ## Team
 
-Built for the **AWS AI for Bharat Hackathon 2025** by the team:
+Built for the **AWS AI for Bharat Hackathon 2026** by the team:
 
 Shailja Mishra,
 Sanmay Anand,
